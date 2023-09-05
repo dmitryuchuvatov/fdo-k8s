@@ -98,9 +98,9 @@ Once the helm repo is added, render the terraform-enterprise chart via:
 helm template terraform-enterprise hashicorp/terraform-enterprise
 ```
 
-Install terraform-enterprise via helm pointing to the **values.yaml** file.
+Install terraform-enterprise via helm pointing to the **values.yaml** file. **Make sure to edit the file before running this command!** 
 
-Make sure to edit the file before running this command. More information [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments-beta/install/kubernetes#optional-configurations)
+More information [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments-beta/install/kubernetes#optional-configurations)
 
 ```
 helm install terraform-enterprise hashicorp/terraform-enterprise -f values.yaml -n terraform-enterprise
