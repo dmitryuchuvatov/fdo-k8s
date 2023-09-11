@@ -10,7 +10,8 @@ Install Kubectl [official documentation](https://kubernetes.io/docs/tasks/tools/
 
 Install Helm [official documentation](https://helm.sh/docs/intro/install/)
 
-TFE FDO license
+ 
+[TFE FDO license](https://license.hashicorp.services/)
 
 # How To
 
@@ -77,14 +78,22 @@ kubectl create namespace terraform-enterprise
 
 Create image pull secret
 
-Create an image pull secret in the namespace from previous step to fetch the *terraform-enterprise* container from the registry appropriate to your installation:
+Export the Docker credentials to pull the image:
 
 ```
-kubectl create secret docker-registry terraform-enterprise --docker-server=terraform-enterprise-beta.terraform.io --docker-username=hc-support-tfe-beta --docker-password=3gdnBJlYWMvOgnnL0GnEMrff2t5dBmLR4OuMt+Niph+ACRDyGuJE  -n terraform-enterprise
+export TFE_FDO_BETA_SERVER=terraform-enterprise-beta.terraform.io
+export TFE_FDO_BETA_USERNAME=hc-support-tfe-beta 
+export TFE_FDO_BETA_TOKEN=3gdnBJlYWMvOgnnL0GnEMrff2t5dBmLR4OuMt+Niph+ACRDyGuJE 
 ```
+
+Then, fetch the *terraform-enterprise* container from the registry:
+
+```
+kubectl create secret docker-registry terraform-enterprise --docker-server=$TFE_FDO_BETA_SERVER --docker-username=$TFE_FDO_BETA_USERNAME --docker-password=$TFE_FDO_BETA_TOKEN  -n terraform-enterprise
+```
+
 
 Add the Hashicorp helm registry and render a local template of the Terraform Enterprise chart:
-
 
 
 ```
@@ -98,7 +107,15 @@ Once the helm repo is added, render the terraform-enterprise chart via:
 helm template terraform-enterprise hashicorp/terraform-enterprise
 ```
 
-Install terraform-enterprise via helm pointing to the **values.yaml** file. **Make sure to edit the file before running this command!** 
+Install terraform-enterprise via helm pointing to the **values.yaml** file. **Make sure to replace the values before running this command!** 
+
+Specifically, double-check and replace the following values:
+
+**TFE_HOSTNAME** must match your Hostname/FQDN (you'll create an actual Route 53 record later)
+
+**TFE_DATABASE_HOST** and **TFE_OBJECT_STORAGE_S3_BUCKET** can be found in *terraform.tfstate* file or in AWS Console (under RDS and S3 sections respectively)
+
+**TFE_LICENSE** is available under your account on https://license.hashicorp.services/ or shared with you for testing purposes
 
 More information [here](https://developer.hashicorp.com/terraform/enterprise/flexible-deployments-beta/install/kubernetes#optional-configurations)
 
