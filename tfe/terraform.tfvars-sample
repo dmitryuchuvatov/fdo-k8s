@@ -1,0 +1,8 @@
+region                  = "eu-west-1"                      # AWS region to deploy in
+cert_email              = "dmitry.uchuvatov@hashicorp.com" # The email address used to register the certificate
+route53_zone            = "tf-support.hashicorpdemo.com"   # The domain of your hosted zone in Route 53
+route53_subdomain       = "eks-fdo"                        # The subomain of the URL
+tfe_encryption_password = "Password1#"                     # TFE encryption password
+replica_count           = "1"                              # Number of Pods/replicas
+tfe_release             = "v202312-1"                      # Which release version of TFE to install
+tfe_license             = "02MV4UU4..."                    # Value from the License file

@@ -1,4 +1,5 @@
 # VPC
+
 resource "aws_vpc" "tfe" {
   cidr_block = var.vpc_cidr
 
@@ -8,9 +9,10 @@ resource "aws_vpc" "tfe" {
 }
 
 # Public Subnet #1
+
 resource "aws_subnet" "tfe_public1" {
   vpc_id                  = aws_vpc.tfe.id
-  cidr_block              = cidrsubnet(local.subnet, 8, 1)
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, 1)
   availability_zone       = "${var.region}a"
   map_public_ip_on_launch = true
 
@@ -20,9 +22,10 @@ resource "aws_subnet" "tfe_public1" {
 }
 
 # Public Subnet #2
+
 resource "aws_subnet" "tfe_public2" {
   vpc_id                  = aws_vpc.tfe.id
-  cidr_block              = cidrsubnet(local.subnet, 8, 2)
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, 2)
   availability_zone       = "${var.region}b"
   map_public_ip_on_launch = true
 
@@ -32,9 +35,10 @@ resource "aws_subnet" "tfe_public2" {
 }
 
 # Private Subnet #1
+
 resource "aws_subnet" "tfe_private1" {
   vpc_id            = aws_vpc.tfe.id
-  cidr_block        = cidrsubnet(local.subnet, 8, 11)
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, 11)
   availability_zone = "${var.region}a"
 
   tags = {
@@ -43,9 +47,10 @@ resource "aws_subnet" "tfe_private1" {
 }
 
 # Private Subnet #2
+
 resource "aws_subnet" "tfe_private2" {
   vpc_id            = aws_vpc.tfe.id
-  cidr_block        = cidrsubnet(local.subnet, 8, 12)
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, 12)
   availability_zone = "${var.region}b"
 
   tags = {
@@ -54,6 +59,7 @@ resource "aws_subnet" "tfe_private2" {
 }
 
 # IGW (Internet Gateway)
+
 resource "aws_internet_gateway" "tfe_igw" {
   vpc_id = aws_vpc.tfe.id
 
@@ -63,11 +69,12 @@ resource "aws_internet_gateway" "tfe_igw" {
 }
 
 # Link IGW with Route Table
+
 resource "aws_default_route_table" "tfe" {
   default_route_table_id = aws_vpc.tfe.default_route_table_id
 
   route {
-    cidr_block = local.all_ips
+    cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.tfe_igw.id
   }
 
@@ -77,6 +84,7 @@ resource "aws_default_route_table" "tfe" {
 }
 
 # Security Group
+
 resource "aws_security_group" "tfe_sg" {
   name   = "${var.environment_name}-sg"
   vpc_id = aws_vpc.tfe.id
@@ -90,33 +98,44 @@ resource "aws_security_group_rule" "allow_https_inbound" {
   type              = "ingress"
   security_group_id = aws_security_group.tfe_sg.id
 
-  from_port   = var.https_port
-  to_port     = var.https_port
-  protocol    = local.tcp_protocol
-  cidr_blocks = [local.all_ips]
+  from_port   = "443"
+  to_port     = "443"
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
 }
 
 resource "aws_security_group_rule" "allow_postgresql_inbound_vpc" {
   type              = "ingress"
   security_group_id = aws_security_group.tfe_sg.id
 
-  from_port   = var.postgresql_port
-  to_port     = var.postgresql_port
-  protocol    = local.tcp_protocol
-  cidr_blocks = [local.all_ips]
+  from_port   = "5432"
+  to_port     = "5432"
+  protocol    = "tcp"
+  cidr_blocks = [var.vpc_cidr]
+}
+
+resource "aws_security_group_rule" "allow_redis_inbound_vpc" {
+  type              = "ingress"
+  security_group_id = aws_security_group.tfe_sg.id
+
+  from_port   = "6379"
+  to_port     = "6379"
+  protocol    = "tcp"
+  cidr_blocks = [var.vpc_cidr]
 }
 
 resource "aws_security_group_rule" "allow_all_outbound" {
   type              = "egress"
   security_group_id = aws_security_group.tfe_sg.id
 
-  from_port   = local.any_port
-  to_port     = local.any_port
-  protocol    = local.any_protocol
-  cidr_blocks = [local.all_ips]
+  from_port   = "0"
+  to_port     = "0"
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
 }
 
 # PostgreSQL database
+
 resource "aws_db_instance" "postgres" {
   identifier                  = "${var.environment_name}-rds"
   db_name                     = var.rds_name
@@ -149,12 +168,32 @@ resource "aws_db_subnet_group" "subnet_group" {
 }
 
 # S3 bucket
+
 resource "aws_s3_bucket" "tfe-bucket" {
   bucket = "${var.environment_name}-s3"
 
   tags = {
     Name = "${var.environment_name}-s3"
   }
+}
+
+# Redis
+
+resource "aws_elasticache_cluster" "redis" {
+  cluster_id           = "${var.environment_name}-cache-cluster"
+  engine               = "redis"
+  node_type            = "cache.t3.small"
+  num_cache_nodes      = 1
+  parameter_group_name = "default.redis6.x"
+  engine_version       = "6.2"
+  port                 = "6379"
+  security_group_ids   = [aws_security_group.tfe_sg.id]
+  subnet_group_name    = aws_elasticache_subnet_group.tfe.name
+}
+
+resource "aws_elasticache_subnet_group" "tfe" {
+  name       = "${var.environment_name}-cache-subnet-group"
+  subnet_ids = [aws_subnet.tfe_private1.id, aws_subnet.tfe_private2.id]
 }
 
 # IAM Roles and Policies
@@ -248,9 +287,9 @@ resource "aws_eks_node_group" "k8s" {
   instance_types  = ["c5.2xlarge"]
 
   scaling_config {
-    desired_size = 1
-    max_size     = 1
     min_size     = 1
+    max_size     = 2
+    desired_size = 1
   }
 
   depends_on = [

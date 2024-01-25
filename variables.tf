@@ -13,18 +13,6 @@ variable "vpc_cidr" {
   description = "The IP range for the VPC in CIDR format"
 }
 
-variable "https_port" {
-  description = "Server port for HTTPS requests"
-  type        = number
-  default     = 443
-}
-
-variable "postgresql_port" {
-  description = "PostgreSQL database port"
-  type        = number
-  default     = 5432
-}
-
 variable "rds_name" {
   description = "Database name"
   type        = string
